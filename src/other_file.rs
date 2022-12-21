@@ -15,7 +15,6 @@ impl OtherFile {
 
     pub fn validate(&self) {
     }
-
 }
 
 impl MediaFile for OtherFile {

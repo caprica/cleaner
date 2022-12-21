@@ -49,10 +49,6 @@ impl ImageFile {
         self.validate_meta();
     }
 
-    pub fn is_valid(&self) -> bool {
-        self.file_errors.is_empty() && self.meta_errors.is_empty()
-    }
-
     fn reset_validation_state(&mut self) {
         self.file_errors.clear();
         self.meta_errors.clear();
@@ -66,11 +62,14 @@ impl ImageFile {
             self.meta_errors.push(ImageMetaError::MissingMeta);
         }
     }
-
 }
 
 impl MediaFile for ImageFile {
     fn path(&self) -> &PathBuf {
         &self.path
+    }
+
+    fn is_valid(&self) -> bool {
+        self.file_errors.is_empty() && self.meta_errors.is_empty()
     }
 }

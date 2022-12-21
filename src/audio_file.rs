@@ -63,10 +63,6 @@ impl AudioFile {
         self.validate_tag();
     }
 
-    pub fn is_valid(&self) -> bool {
-        self.file_errors.is_empty() && self.tag_errors.is_empty()
-    }
-
     fn reset_validation_state(&mut self) {
         self.file_errors.clear();
         self.tag_errors.clear();
@@ -130,11 +126,14 @@ impl AudioFile {
             })
             .unwrap_or_else(|| self.tag_errors.push(AudioTagError::MissingTag));
     }
-
 }
 
 impl MediaFile for AudioFile {
     fn path(&self) -> &PathBuf {
         &self.path
+    }
+
+    fn is_valid(&self) -> bool {
+        self.file_errors.is_empty() && self.tag_errors.is_empty()
     }
 }
