@@ -70,7 +70,7 @@ impl AudioFile {
 
     fn validate_file(&mut self, root_path: &PathBuf) {
         lazy_static! {
-            static ref RE: Regex = Regex::new(r"^\d{2,3}\s.+$").unwrap();
+            static ref RE: Regex = Regex::new(r"^\d{2,3}\s\w.*$").unwrap();
         }
 
         let album_path = self.path.parent();
