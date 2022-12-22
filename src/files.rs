@@ -56,16 +56,13 @@ impl Files {
       for entry in WalkDir::new(&self.path).into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| !e.file_type().is_dir()) {
-            let directory = entry.path().parent();
-            if directory.is_some() {
-                let ext = entry.path().extension().and_then(|e| e.to_str());
-                let file_path = entry.path().to_path_buf();
-                match ext {
-                    Some("mp3" | "flac") => self.audio_files.push(AudioFile::new(file_path)),
-                    Some("png" | "jpg" | "jpeg") => self.image_files.push(ImageFile::new(file_path)),
-                    _ => self.other_files.push(OtherFile::new(file_path))
-                };
-            }
+            let ext = entry.path().extension().and_then(|e| e.to_str());
+            let file_path = entry.path().to_path_buf();
+            match ext {
+                Some("mp3" | "flac") => self.audio_files.push(AudioFile::new(file_path)),
+                Some("png" | "jpg" | "jpeg") => self.image_files.push(ImageFile::new(file_path)),
+                _ => self.other_files.push(OtherFile::new(file_path))
+            };
         };
 
     }
