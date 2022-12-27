@@ -23,8 +23,7 @@ impl AudioFile {
 
         let artist_path = path
             .parent()
-            .map(|p| p.parent())
-            .flatten()
+            .and_then(|p| p.parent())
             .map(|p| p.to_path_buf())
             .filter(|p| p != root_path);
 
