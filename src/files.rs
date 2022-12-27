@@ -20,24 +20,11 @@ impl Files {
             other_files: Vec::new()
         };
         files.scan();
-        files.validate();
         files
     }
 
     pub fn path(&self) -> &PathBuf {
         &self.path
-    }
-
-    pub fn audio_files(&self) -> &Vec<AudioFile> {
-        &self.audio_files
-    }
-
-    pub fn image_files(&self) -> &Vec<ImageFile> {
-        &self.image_files
-    }
-
-    pub fn other_files(&self) -> &Vec<OtherFile> {
-        &self.other_files
     }
 
     pub fn get_audio_file_map(&self) -> BTreeMap<PathBuf, Vec<&AudioFile>> {
@@ -59,36 +46,12 @@ impl Files {
             let ext = entry.path().extension().and_then(|e| e.to_str());
             let file_path = entry.path().to_path_buf();
             match ext {
-                Some("mp3" | "flac") => self.audio_files.push(AudioFile::new(file_path)),
+                Some("mp3" | "flac") => self.audio_files.push(AudioFile::new(&self.path, file_path)),
                 Some("png" | "jpg" | "jpeg") => self.image_files.push(ImageFile::new(file_path)),
                 _ => self.other_files.push(OtherFile::new(file_path))
             };
         };
 
-    }
-
-    fn validate(&mut self) {
-        self.validate_audio_files();
-        self.validate_image_files();
-        self.validate_other_files();
-    }
-
-    fn validate_audio_files(&mut self) {
-        for audio_file in self.audio_files.iter_mut() {
-            audio_file.validate(&self.path);
-        }
-    }
-
-    fn validate_image_files(&mut self) {
-        for image_file in self.image_files.iter_mut() {
-            image_file.validate();
-        }
-    }
-
-    fn validate_other_files(&mut self) {
-        for other_file in self.other_files.iter_mut() {
-            other_file.validate();
-        }
     }
 
     fn get_file_map<'a, T: MediaFile>(&'a self, files: &'a Vec<T>) -> BTreeMap<PathBuf, Vec<&T>> {

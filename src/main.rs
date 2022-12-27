@@ -1,18 +1,21 @@
 mod audio_file;
+mod audio_file_meta;
 mod image_file;
 mod media_file;
 mod other_file;
 mod files;
+mod tagger;
 
 use clap::Parser;
 use files::Files;
-use std::{path::{PathBuf, Path}, collections::{BTreeMap}};
+use std::{path::{PathBuf, Path}, collections::{BTreeMap}, fs, cmp::max};
 
-use crate::media_file::MediaFile;
+use crate::{media_file::MediaFile, tagger::clean_tags};
 
 #[derive(Parser)]
 struct Cli {
-    path: PathBuf
+    path: PathBuf,
+    output: PathBuf
 }
 
 fn main() {
@@ -26,56 +29,58 @@ fn main() {
     let files = Files::new(args.path);
 
     println!("PROCESSING FILES IN {}", files.path().to_str().unwrap());
-
-    let debug = false;
-
-    if debug {
-        for audio_file in files.audio_files() {
-            println!("AUDIO FILE: {}", audio_file.path().to_str().unwrap());
-            if !audio_file.is_valid() {
-                for err in audio_file.file_errors() {
-                    println!(" -> FILE ERROR: {:?}", err);
-                }
-                for err in audio_file.tag_errors() {
-                    println!(" ->  TAG ERROR: {:?}", err);
-                }
-            }
-        }
-
-        for image_file in files.image_files() {
-            println!("IMAGE FILE: {}", image_file.path().to_str().unwrap());
-            if !image_file.is_valid() {
-                for err in image_file.file_errors() {
-                    println!(" -> FILE ERROR: {:?}", err);
-                }
-                for err in image_file.meta_errors() {
-                    println!(" -> META ERROR: {:?}", err);
-                }
-            }
-        }
-
-        for other_file in files.other_files() {
-            println!("OTHER FILE: {}", other_file.path().to_str().unwrap());
-        }
-
-        println!();
-    }
+    println!();
 
     let audio_file_map = files.get_audio_file_map();
     let image_file_map = files.get_image_file_map();
     let other_file_map = files.get_other_file_map();
 
-    dump_map(&audio_file_map);
-    dump_map(&image_file_map);
-    dump_map(&other_file_map);
+    let debug = false;
+
+    if debug {
+        dump_map(&audio_file_map);
+        dump_map(&image_file_map);
+        dump_map(&other_file_map);
+    }
+
+    let output_path = &args.output;
+
+    for (path, audio_files) in audio_file_map {
+        println!("{}", path.to_str().unwrap());
+        for audio_file in &audio_files{
+            let meta = audio_file.get_audio_file_meta();
+
+            let artist_output_path = output_path.join(meta.album_artist_name().unwrap_or_else(|| "<missing>"));
+            let album_output_path = artist_output_path.join(meta.album_title().unwrap_or_else(|| "<missing>"));
+            let track_number = meta.track_number().unwrap();
+            let track_title = meta.track_title().unwrap();
+
+            let track_field_width = max(2, audio_files.len().to_string().chars().count());
+
+            let track_file_name = format!("{:0width$} {}.{}", track_number, track_title, meta.audio_file_type().expect("Must have a file type").to_extension(), width = track_field_width);
+            let target_file_path = album_output_path.join(track_file_name);
+
+            println!(" create track '{}'", target_file_path.to_str().unwrap());
+
+            if fs::create_dir_all(album_output_path).is_ok() {
+                fs::copy(audio_file.path(), &target_file_path).expect("Failed to copy file");
+                // we don't want anything left over from the original tag, so create new...
+
+                let total_tracks: u32 = audio_files.len().try_into().unwrap();
+
+                clean_tags(&target_file_path, &meta, total_tracks);
+            }
+        }
+        println!();
+    }
 
 }
 
 fn dump_map<T: MediaFile>(map: &BTreeMap<PathBuf, Vec<&T>>) {
     for (key, value) in map {
         println!("{}", key.to_str().unwrap());
-        for other_file in value {
-            println!(" -> {}", other_file.path().file_name().unwrap().to_str().unwrap());
+        for media_file in value {
+            println!(" -> {}", media_file.path().file_name().unwrap().to_str().unwrap());
         }
     }
     println!();
