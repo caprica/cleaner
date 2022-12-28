@@ -1,4 +1,4 @@
-use std::{path::{PathBuf}};
+use std::path::{PathBuf};
 use lazy_static::lazy_static;
 use lofty::{TaggedFile, Accessor, ItemKey, PictureType, TaggedFileExt, Tag};
 use regex::Regex;
