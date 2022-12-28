@@ -165,20 +165,20 @@ impl AudioFile {
         if let Some(file_stem) = self.path
             .file_stem()
             .and_then(|s| s.to_str()) {
-            if let Some(captures) = RE.captures(file_stem) {
-                let track_number = captures
-                    .get(1)
-                    .map(|m| m.as_str())
-                    .and_then(|s| s.parse::<u32>().ok());
+                if let Some(captures) = RE.captures(file_stem) {
+                    let track_number = captures
+                        .get(1)
+                        .map(|m| m.as_str())
+                        .and_then(|s| s.parse::<u32>().ok());
 
-                let track_name = captures
-                    .get(2)
-                    .map(|m| m.as_str());
+                    let track_name = captures
+                        .get(2)
+                        .map(|m| m.as_str());
 
-                return (track_number, track_name, audio_file_type);
+                    return (track_number, track_name, audio_file_type);
+                }
+                return (None::<u32>, Some(file_stem), audio_file_type);
             }
-            return (None::<u32>, Some(file_stem), audio_file_type);
-        }
 
         (None::<u32>, None::<&str>, audio_file_type)
     }
