@@ -1,6 +1,6 @@
-use std::path::{PathBuf};
+use std::{path::{PathBuf}};
 use lazy_static::lazy_static;
-use lofty::{TaggedFile, Accessor, ItemKey};
+use lofty::{TaggedFile, Accessor, ItemKey, PictureType, TaggedFileExt, Tag};
 use regex::Regex;
 
 use crate::{media_file::MediaFile, audio_file_meta::{AudioFileMeta, AudioFileType}, tagger::get_tagged_file};
@@ -36,8 +36,6 @@ impl AudioFile {
     }
 
     pub fn get_audio_file_meta(&self) -> AudioFileMeta {
-        let tag = self.tagged_file.primary_tag();
-
         let path_artist_name = self.decompose_artist_path();
 
         let (
@@ -51,44 +49,61 @@ impl AudioFile {
             audio_file_type
         ) = self.decompose_file_path();
 
-        // Album artist name from album artist tag, artist tag, or artist directory name
-        let album_artist_name = tag
-            .and_then(|t| t.get_string(&ItemKey::AlbumArtist).or(t.artist()))
-            .or_else(|| path_artist_name)
-            .map(|s| s.to_string());
+        let album_artist_name: Option<String>;
+        let artist_name: Option<String>;
+        let album_title: Option<String>;
+        let year: Option<u32>;
+        let track_number: Option<u32>;
+        let track_title: Option<String>;
+        let genre: Option<String>;
 
-        // Artist name from artist tag, album artist tag, or artist directory name
-        let artist_name = tag
-            .and_then(|t| t.artist().or(t.get_string(&ItemKey::AlbumArtist)))
-            .or_else(|| path_artist_name)
-            .map(|s| s.to_string());
+        // There must be a better way than all these mappings...
 
-        // Album title from tag, or album directory name
-        let album_title = tag
-            .and_then(|t| t.album())
-            .or_else(|| path_album_title)
-            .map(|s| s.to_string());
+        if let Some(tag) = self.tagged_file.primary_tag() {
+            // Album artist name from album artist tag, artist tag, or artist directory name
+            album_artist_name = self.get_album_artist(tag)
+                .or_else(|| tag.artist().map(|s| s.to_string()))
+                .or_else(|| path_artist_name.map(|p| p.to_string()));
 
-        // Year from tag, or album directory name
-        let year = tag
-            .and_then(|t| t.year())
-            .or_else(|| path_album_year);
+            // Artist name from artist tag, album artist tag, or artist directory name
+            artist_name = tag.artist()
+                .map(|s| s.to_string())
+                .or_else(|| self.get_album_artist(tag))
+                .or_else(|| path_artist_name.map(|s| s.to_owned()));
 
-        // Track number from tag, or file name
-        let track_number = tag
-            .and_then(|t| t.track())
-            .or_else(|| path_track_number);
+            // Album title from tag, or album directory name
+            album_title = tag.album()
+                .map(|s| s.to_string())
+                .or_else(|| path_album_title.map(|s| s.to_owned()));
 
-        // Track title from tag, or file name
-        let track_title = tag
-            .and_then(|t| t.title())
-            .or_else(|| path_track_title)
-            .map(|s| s.to_string());
+            // Year from tag, or album directory name
+            year = tag.year()
+                .or_else(|| path_album_year);
 
-        // Genre from tag, no fallback available
-        let genre = tag
-            .and_then(|t| t.genre())
-            .map(|s| s.to_string());
+            // Track number from tag, or file name
+            track_number = tag.track()
+                .or_else(|| path_track_number);
+
+            // Track title from tag, or file name
+            track_title = tag.title()
+                .map(|s| s.to_string())
+                .or_else(|| path_track_title.map(|s| s.to_owned()));
+
+            // Genre from tag, no fallback available
+            genre = tag.genre()
+                .map(|s| s.to_string());
+
+            // Cover art from tag, no fallback available (at this point)
+            let cover_art = tag.get_picture_type(PictureType::CoverFront);
+        } else {
+            album_artist_name = path_artist_name.map(|s| s.to_owned());
+            artist_name = path_artist_name.map(|s| s.to_owned());
+            album_title = path_album_title.map(|s| s.to_owned());
+            year = path_album_year;
+            track_number = path_track_number;
+            track_title = path_track_title.map(|s| s.to_owned());
+            genre = None;
+        }
 
         AudioFileMeta::new(
             album_artist_name,
@@ -105,7 +120,7 @@ impl AudioFile {
     fn decompose_artist_path(&self) -> Option<&str> {
         self.artist_path.as_ref()
             .and_then(|p| p.file_name())
-            .and_then(|f| f.to_str())
+            .and_then(|s| s.to_str())
     }
 
     fn decompose_album_path(&self) -> (Option<&str>, Option<u32>) {
@@ -168,6 +183,11 @@ impl AudioFile {
         (None::<u32>, None::<&str>, audio_file_type)
     }
 
+    fn get_album_artist(&self, tag: &Tag) -> Option<String> {
+        tag
+            .get_string(&ItemKey::AlbumArtist)
+            .map(|s| s.to_string())
+    }
 }
 
 impl MediaFile for AudioFile {

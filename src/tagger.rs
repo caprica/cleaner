@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use lofty::{Probe, Tag, Accessor, TagExt, TaggedFile, ItemKey, TagType};
+use lofty::{Probe, Tag, Accessor, TagExt, TaggedFile, ItemKey, TagType, TaggedFileExt};
 
 use crate::audio_file_meta::AudioFileMeta;
 
@@ -33,7 +33,7 @@ fn remove_tags(path: &PathBuf, tagged_file: &mut TaggedFile) {
 }
 
 fn remove_tag(path: &PathBuf, tagged_file: &mut TaggedFile, tag_type: TagType) {
-    if let Some(tag) = tagged_file.take(tag_type) {
+    if let Some(tag) = tagged_file.remove(tag_type) {
         tag.remove_from_path(path).expect("Failed to remove tag");
     }
 }
