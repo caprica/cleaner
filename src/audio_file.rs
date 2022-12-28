@@ -1,6 +1,6 @@
-use std::path::{PathBuf};
+use std::path::PathBuf;
 use lazy_static::lazy_static;
-use lofty::{TaggedFile, Accessor, ItemKey, PictureType, TaggedFileExt, Tag};
+use lofty::{TaggedFile, Accessor, ItemKey, TaggedFileExt, Tag};
 use regex::Regex;
 
 use crate::{media_file::MediaFile, audio_file_meta::{AudioFileMeta, AudioFileType}, tagger::get_tagged_file};
@@ -92,9 +92,6 @@ impl AudioFile {
             // Genre from tag, no fallback available
             genre = tag.genre()
                 .map(|s| s.to_string());
-
-            // Cover art from tag, no fallback available (at this point)
-            let cover_art = tag.get_picture_type(PictureType::CoverFront);
         } else {
             album_artist_name = path_artist_name.map(|s| s.to_owned());
             artist_name = path_artist_name.map(|s| s.to_owned());
