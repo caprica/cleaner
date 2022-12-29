@@ -18,8 +18,8 @@ impl ImageFile {
         }
     }
 
-    pub fn meta(&self) -> &Option<ImageMeta> {
-        &self.meta
+    pub fn meta(&self) -> Option<&ImageMeta> {
+        self.meta.as_ref()
     }
 }
 

@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
-use lofty::{Probe, Tag, Accessor, TagExt, TaggedFile, ItemKey, TagType, TaggedFileExt};
+use image::EncodableLayout;
+use lofty::{Probe, Tag, Accessor, TagExt, TaggedFile, ItemKey, TagType, TaggedFileExt, PictureType, Picture};
 
 use crate::audio_file_meta::AudioFileMeta;
 
@@ -11,18 +12,18 @@ pub fn get_tagged_file(path: &PathBuf) -> TaggedFile {
         .expect("Failed to read file")
 }
 
-pub fn clean_tags(path: &PathBuf, meta: &AudioFileMeta, total_tracks: u32) {
+pub fn clean_tags(path: &PathBuf, meta: &AudioFileMeta, total_tracks: u32, cover_image: &Option<Vec<u8>>) {
 	let mut tagged_file = get_tagged_file(path);
 
     remove_tags(path, &mut tagged_file);
 
     // Primarily use ID3v2
-    add_tag(&mut tagged_file, TagType::ID3v2, meta, total_tracks)
+    add_tag(&mut tagged_file, TagType::ID3v2, meta, total_tracks, &cover_image)
         .save_to_path(path)
         .expect("Failed to write ID3v2 tag");
 
     // Add ID3v1 for fallback/compatibility
-    add_tag(&mut tagged_file, TagType::ID3v1, meta, total_tracks)
+    add_tag(&mut tagged_file, TagType::ID3v1, meta, total_tracks, &cover_image)
         .save_to_path(path)
         .expect("Failed to write ID3v1 tag");
 }
@@ -38,7 +39,7 @@ fn remove_tag(path: &PathBuf, tagged_file: &mut TaggedFile, tag_type: TagType) {
     }
 }
 
-fn add_tag<'a>(tagged_file: &'a mut TaggedFile, tag_type: TagType, meta: &AudioFileMeta, total_tracks: u32) -> &'a Tag {
+fn add_tag<'a>(tagged_file: &'a mut TaggedFile, tag_type: TagType, meta: &AudioFileMeta, total_tracks: u32, cover_image: &Option<Vec<u8>>) -> &'a Tag {
     tagged_file
         .insert_tag(Tag::new(tag_type));
 
@@ -91,6 +92,17 @@ fn add_tag<'a>(tagged_file: &'a mut TaggedFile, tag_type: TagType, meta: &AudioF
 
     if let Some(genre) = meta.genre() {
         tag.set_genre(genre.to_string());
+    }
+
+    if let Some(cover_image) = cover_image {
+        let mut buffer = cover_image.as_bytes();
+        match Picture::from_reader(&mut buffer) {
+            Ok(mut picture) => {
+                picture.set_pic_type(PictureType::CoverFront);
+                tag.push_picture(picture);
+            },
+            Err(err) => panic!("Failed to read picture from buffer: {}", err),
+        }
     }
 
     tag

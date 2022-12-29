@@ -35,6 +35,10 @@ impl AudioFile {
         }
     }
 
+    pub fn get_tagged_file(&self) -> &TaggedFile {
+        &self.tagged_file
+    }
+
     pub fn get_audio_file_meta(&self) -> AudioFileMeta {
         let path_artist_name = self.decompose_artist_path();
 
