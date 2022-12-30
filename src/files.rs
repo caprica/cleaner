@@ -23,10 +23,6 @@ impl Files {
         files
     }
 
-    pub fn path(&self) -> &PathBuf {
-        &self.path
-    }
-
     pub fn get_audio_file_map(&self) -> BTreeMap<PathBuf, Vec<&AudioFile>> {
         self.get_file_map(&self.audio_files)
     }
