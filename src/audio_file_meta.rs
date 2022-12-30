@@ -1,5 +1,7 @@
-#[derive(Debug)]
+use lofty::TaggedFile;
+
 pub struct AudioFileMeta {
+    tagged_file: TaggedFile,
     album_artist_name: Option<String>,
     artist_name: Option<String>,
     album_title: Option<String>,
@@ -10,7 +12,6 @@ pub struct AudioFileMeta {
     audio_file_type: Option<AudioFileType>
 }
 
-#[derive(Debug)]
 pub enum AudioFileType {
     Flac,
     Mp3
@@ -18,6 +19,7 @@ pub enum AudioFileType {
 
 impl AudioFileMeta {
     pub fn new(
+        tagged_file: TaggedFile,
         album_artist_name: Option<String>,
         artist_name: Option<String>,
         album_title: Option<String>,
@@ -28,6 +30,7 @@ impl AudioFileMeta {
         audio_file_type: Option<AudioFileType>
     ) -> AudioFileMeta {
         AudioFileMeta {
+            tagged_file,
             album_artist_name,
             artist_name,
             album_title,
@@ -37,6 +40,10 @@ impl AudioFileMeta {
             genre,
             audio_file_type
         }
+    }
+
+    pub fn tagged_file(&self) -> &TaggedFile {
+        &self.tagged_file
     }
 
     pub fn album_artist_name(&self) -> Option<&str> {

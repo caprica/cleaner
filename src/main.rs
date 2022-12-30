@@ -1,6 +1,7 @@
 mod art;
 mod audio_file;
 mod audio_file_meta;
+mod audio_file_path_util;
 mod image_file;
 mod media_file;
 mod other_file;
@@ -27,10 +28,10 @@ fn main() {
         return;
     }
 
-    let files = Files::new(args.path);
-
-    println!("PROCESSING FILES IN {}", files.path().to_str().unwrap());
+    println!("PROCESSING FILES IN {}", &args.path.to_str().unwrap());
     println!();
+
+    let files = Files::new(args.path);
 
     let audio_file_map = files.get_audio_file_map();
     let image_file_map = files.get_image_file_map();
@@ -57,7 +58,7 @@ fn main() {
         let cover_art_buffer = cover_art_image.as_ref().map(|image| write_image_to_buffer(&image));
 
         for audio_file in &audio_files {
-            let meta = audio_file.get_audio_file_meta();
+            let meta = audio_file.get_meta();
 
             let artist_output_path = output_path.join(meta.album_artist_name().unwrap_or_else(|| "<missing>"));
             let album_output_path = artist_output_path.join(meta.album_title().unwrap_or_else(|| "<missing>"));

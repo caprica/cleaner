@@ -1,7 +1,7 @@
 use std::{io::Cursor, fs::File, path::PathBuf};
 
 use image::{DynamicImage, io::Reader};
-use lofty::{PictureType, TaggedFileExt};
+use lofty::{TaggedFileExt, PictureType};
 
 use crate::{image_file::ImageFile, media_file::MediaFile, audio_file::AudioFile};
 
@@ -68,18 +68,17 @@ pub fn get_cover_art_from_file(image_files: &Vec<&ImageFile>) -> Option<DynamicI
 
 pub fn get_cover_art_from_tag(audio_files: &Vec<&AudioFile>) -> Option<DynamicImage> {
     for audio_file in audio_files {
-        if let Some(tag) = audio_file.get_tagged_file().primary_tag() {
-            if let Some(pic) = tag.get_picture_type(PictureType::CoverFront) {
-                let cursor = Cursor::new(pic.data());
-                if let Some(image) = Reader::new(cursor)
-                    .with_guessed_format()
-                    .ok()
-                    .and_then(|r| r.decode().ok()) {
-                        return Some(image);
-                    }
+        if let Some(cover_art) = audio_file.get_meta()
+            .tagged_file()
+            .primary_tag()
+            .and_then(|t| t.get_picture_type(PictureType::CoverFront))
+            .map(|p| Cursor::new(p.data()))
+            .and_then(|c| Reader::new(c).with_guessed_format().ok())
+            .and_then(|r| r.decode().ok()) {
+                return Some(cover_art);
             }
-        }
     }
+
     None
 }
 
