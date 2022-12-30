@@ -36,17 +36,20 @@ impl Files {
     }
 
     fn scan(&mut self) {
-      for entry in WalkDir::new(&self.path).min_depth(1).into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| !e.file_type().is_dir()) {
-            let ext = entry.path().extension().and_then(|e| e.to_str());
-            let file_path = entry.path().to_path_buf();
-            match ext {
-                Some("mp3" | "flac") => self.audio_files.push(AudioFile::new(&self.path, file_path)),
-                Some("png" | "jpg" | "jpeg") => self.image_files.push(ImageFile::new(file_path)),
-                _ => self.other_files.push(OtherFile::new(file_path))
+        let walker = WalkDir::new(&self.path)
+            .min_depth(1);
+
+        for entry in walker.into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| !e.file_type().is_dir()) {
+                let ext = entry.path().extension().and_then(|e| e.to_str());
+                let file_path = entry.path().to_path_buf();
+                match ext {
+                    Some("mp3" | "flac") => self.audio_files.push(AudioFile::new(&self.path, file_path)),
+                    Some("png" | "jpg" | "jpeg") => self.image_files.push(ImageFile::new(file_path)),
+                    _ => self.other_files.push(OtherFile::new(file_path))
+                };
             };
-        };
     }
 
     fn get_file_map<'a, T: MediaFile>(&'a self, files: &'a Vec<T>) -> BTreeMap<PathBuf, Vec<&T>> {
