@@ -36,7 +36,7 @@ impl Files {
     }
 
     fn scan(&mut self) {
-      for entry in WalkDir::new(&self.path).into_iter()
+      for entry in WalkDir::new(&self.path).min_depth(1).into_iter()
         .filter_map(|e| e.ok())
         .filter(|e| !e.file_type().is_dir()) {
             let ext = entry.path().extension().and_then(|e| e.to_str());
@@ -47,7 +47,6 @@ impl Files {
                 _ => self.other_files.push(OtherFile::new(file_path))
             };
         };
-
     }
 
     fn get_file_map<'a, T: MediaFile>(&'a self, files: &'a Vec<T>) -> BTreeMap<PathBuf, Vec<&T>> {
