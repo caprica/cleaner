@@ -51,7 +51,7 @@ fn main() {
         println!("{}", path.to_str().unwrap());
 
         let cover_art_image = match &image_file_map.get(&path) {
-            Some(image_files) => get_cover_art_from_file(&image_files),
+            Some(image_files) => get_cover_art_from_file(&image_files, &audio_files),
             None => get_cover_art_from_tag(&audio_files)
         };
 

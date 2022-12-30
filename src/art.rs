@@ -1,4 +1,4 @@
-use std::{io::Cursor, fs::File, path::PathBuf};
+use std::{io::Cursor, fs::File, path::PathBuf, ffi::OsStr, collections::HashSet};
 
 use image::{DynamicImage, io::Reader};
 use lofty::{TaggedFileExt, PictureType};
@@ -7,7 +7,12 @@ use crate::{image_file::ImageFile, media_file::MediaFile, audio_file::AudioFile}
 
 const JPEG_QUALITY: u8 = 90;
 
-pub fn get_cover_art_from_file(image_files: &Vec<&ImageFile>) -> Option<DynamicImage> {
+const COVER_NAME: &str = "cover";
+const FRONT_NAME: &str = "front";
+
+const INITIAL_BUFFER_CAPACITY: usize = 256 * 1024;
+
+pub fn get_cover_art_from_file(image_files: &Vec<&ImageFile>, audio_files: &Vec<&AudioFile>) -> Option<DynamicImage> {
     let mut cover_art_file = None::<&ImageFile>;
 
     // Only one file
@@ -18,8 +23,8 @@ pub fn get_cover_art_from_file(image_files: &Vec<&ImageFile>) -> Option<DynamicI
     // Exact name matches
     if cover_art_file.is_none() {
         for image_file in image_files {
-            if let Some(name) = image_file.path().file_stem() {
-                if name == "cover" || name == "front" {
+            if let Some(name) = to_comparable_string(image_file.path().file_stem()) {
+                if name == COVER_NAME || name == FRONT_NAME {
                     cover_art_file = Some(image_file);
                     break;
                 }
@@ -30,10 +35,35 @@ pub fn get_cover_art_from_file(image_files: &Vec<&ImageFile>) -> Option<DynamicI
     // Partial name matches
     if cover_art_file.is_none() {
         for image_file in image_files {
-            if let Some(name) = image_file.path().file_stem().and_then(|s| s.to_str()) {
-                if name.contains("cover") || name.contains("front") {
+            if let Some(name) = to_comparable_string(image_file.path().file_stem()) {
+                if name.contains(COVER_NAME) || name.contains(FRONT_NAME) {
                     cover_art_file = Some(image_file);
                     break;
+                }
+            }
+        }
+    }
+
+    // Partial album name matches
+    if cover_art_file.is_none() {
+        let album_titles = audio_files.iter()
+            .fold(
+                HashSet::<String>::new(),
+                |mut acc, file| {
+                    if let Some(album_title) = file.get_meta().album_title() {
+                        acc.insert(album_title.to_lowercase());
+                    }
+                    acc
+                }
+            );
+
+        for image_file in image_files {
+            if let Some(name) = to_comparable_string(image_file.path().file_stem()) {
+                for album_title in &album_titles {
+                    if name.contains(album_title) {
+                        cover_art_file = Some(image_file);
+                        break;
+                    }
                 }
             }
         }
@@ -88,7 +118,13 @@ pub fn write_image_to_file(image: &DynamicImage, path: &PathBuf) {
 }
 
 pub fn write_image_to_buffer(image: &DynamicImage) -> Vec<u8> {
-    let mut buffer = Cursor::new(Vec::new());
+    let mut buffer = Cursor::new(Vec::with_capacity(INITIAL_BUFFER_CAPACITY));
     image.write_to(&mut buffer, image::ImageOutputFormat::Jpeg(JPEG_QUALITY)).expect("Failed to write image to buffer");
     buffer.into_inner()
+}
+
+fn to_comparable_string(s: Option<&OsStr>) -> Option<String> {
+    s.and_then(|s| s.to_str()
+        .map(|s| s.to_string()))
+        .map(|s| s.to_lowercase())
 }
