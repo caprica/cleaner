@@ -1,5 +1,6 @@
-use image_meta::ImageMeta;
 use std::path::PathBuf;
+
+use image_meta::ImageMeta;
 
 use crate::media_file::MediaFile;
 

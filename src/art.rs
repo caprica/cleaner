@@ -5,8 +5,6 @@ use lofty::{TaggedFileExt, PictureType};
 
 use crate::{image_file::ImageFile, media_file::MediaFile, audio_file::AudioFile};
 
-const JPEG_QUALITY: u8 = 90;
-
 const COVER_NAME: &str = "cover";
 const FRONT_NAME: &str = "front";
 
@@ -112,14 +110,14 @@ pub fn get_cover_art_from_tag(audio_files: &Vec<&AudioFile>) -> Option<DynamicIm
     None
 }
 
-pub fn write_image_to_file(image: &DynamicImage, path: &PathBuf) {
+pub fn write_image_to_file(image: &DynamicImage, path: &PathBuf, quality: u8) {
     let mut file = File::create(path).expect("Failed to create image file");
-    image.write_to(&mut file, image::ImageOutputFormat::Jpeg(JPEG_QUALITY)).expect("Failed to write image to file");
+    image.write_to(&mut file, image::ImageOutputFormat::Jpeg(quality)).expect("Failed to write image to file");
 }
 
-pub fn write_image_to_buffer(image: &DynamicImage) -> Vec<u8> {
+pub fn write_image_to_buffer(image: &DynamicImage, quality: u8) -> Vec<u8> {
     let mut buffer = Cursor::new(Vec::with_capacity(INITIAL_BUFFER_CAPACITY));
-    image.write_to(&mut buffer, image::ImageOutputFormat::Jpeg(JPEG_QUALITY)).expect("Failed to write image to buffer");
+    image.write_to(&mut buffer, image::ImageOutputFormat::Jpeg(quality)).expect("Failed to write image to buffer");
     buffer.into_inner()
 }
 

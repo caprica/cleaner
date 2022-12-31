@@ -1,13 +1,41 @@
 use std::{path::PathBuf, collections::BTreeSet, io::{stdout, Write}};
 
 use colored::Colorize;
-use tempfile::Builder;
-use unrar::{Archive, error::UnrarResult, archive::Entry};
+use tempfile::{Builder, TempDir};
+use unrar::Archive;
 use walkdir::WalkDir;
-use zip::result::ZipResult;
 use zip_extensions::zip_extract;
 
-pub fn get_archive_paths(path: &PathBuf) -> BTreeSet<PathBuf> {
+use crate::{error::{CleanerResult, CleanerError}, cleaner::clean_files};
+
+pub fn process_archives(path: &PathBuf, output_path: &PathBuf, quality: u8) {
+    println!("Processing archives in {} to {}...\n",
+        path.to_string_lossy().bright_yellow().bold(),
+        output_path.to_string_lossy().bright_yellow().bold()
+    );
+
+    let archives = get_archives(path);
+
+    for archive in archives {
+        print!("Extract {} ", archive.file_name().unwrap().to_string_lossy().bright_magenta().bold());
+
+        stdout().flush().expect("Failed to flush terminal output");
+
+        match extract_archive(&archive) {
+            Ok(temp_dir) => {
+                println!("{}", "OK".bright_green().bold());
+                let temp_path = temp_dir.path().to_path_buf();
+                clean_files(&temp_path, output_path, quality);
+            },
+            Err(err) => println!("{} {}", "ERROR".bright_red().bold(), err.to_string().red())
+        }
+    }
+
+    println!("Finished.");
+
+}
+
+fn get_archives(path: &PathBuf) -> BTreeSet<PathBuf> {
     let walker = WalkDir::new(&path)
         .min_depth(1)
         .max_depth(1);
@@ -25,59 +53,37 @@ pub fn get_archive_paths(path: &PathBuf) -> BTreeSet<PathBuf> {
         .collect::<BTreeSet<PathBuf>>()
 }
 
-pub fn process_archives(path: &PathBuf) {
-    let archives = get_archive_paths(path);
+fn extract_archive(archive_path: &PathBuf) -> CleanerResult<TempDir> {
+    let temp_dir = Builder::new().prefix("cleaner").tempdir()?;
+    let temp_path = temp_dir.path().to_path_buf();
 
-    let width = archives
-        .iter()
-        .map(|p| p.file_name().unwrap().to_string_lossy().chars().count())
-        .max()
-        .unwrap();
-
-    println!("Processing archives in {}...\n",
-        path.to_string_lossy().bright_yellow().bold()
-    );
-
-    for archive in archives {
-        print!("{:<width$} ",
-            archive.file_name().unwrap().to_string_lossy().bright_white().bold()
-        );
-
-        stdout().flush().expect("Failed to flush terminal output");
-
-        let temp_dir = Builder::new().prefix("cleaner").tempdir().expect("Failed to create temporary directory");
-
-        let output_path = temp_dir.path().to_path_buf();
-
-        if let Some(ext) = archive.extension() {
-            if ext == "zip" {
-                match extract_zip_archive(&archive, &output_path) {
-                    Ok(_) => println!("{}", "OK".bright_green().bold()),
-                    Err(err) => println!("{} {}", "ERROR".bright_red().bold(), err.to_string().red()),
-                }
-            } else if ext == "rar" {
-                match extract_rar_archive(&archive, &output_path) {
-                    Ok(_) => println!("{}", "OK".bright_green().bold()),
-                    Err(err) => println!("{} {}", "ERROR".bright_red().bold(), err.to_string().red()),
-                }
-            }
-        }
+    if let Some(ext) = archive_path.extension().and_then(|s| s.to_str()) {
+        let result = match ext {
+            "rar" => extract_rar_archive(archive_path, &temp_path),
+            "zip" => extract_zip_archive(archive_path, &temp_path),
+            _ => Err(CleanerError::UnexpectedFileExtension)
+        };
+        result.map(|_| temp_dir)
+    } else {
+        Err(CleanerError::MissingFileExtension)
     }
-
-    println!("\nFinished.");
-
 }
 
-fn extract_zip_archive(archive_path: &PathBuf, output_path: &PathBuf) -> ZipResult<()> {
-    zip_extract(archive_path, output_path)
+fn extract_zip_archive(archive_path: &PathBuf, output_path: &PathBuf) -> CleanerResult<()> {
+    zip_extract(archive_path, output_path)?;
+    Ok(())
 }
 
-fn extract_rar_archive(archive_path: &PathBuf, output_path: &PathBuf) ->  UnrarResult<Vec<Entry>> {
+fn extract_rar_archive(archive_path: &PathBuf, output_path: &PathBuf) -> CleanerResult<()> {
     let archive_name = archive_path.to_str().unwrap().to_string();
     let output_name = output_path.to_str().unwrap().to_string();
-
-    Archive::new(archive_name)
+    let result = Archive::new(archive_name)
         .extract_to(output_name)
         .unwrap()
-        .process()
+        .process();
+    // I do this because I don't know how to map from a generics exception using thiserror
+    match result {
+        Ok(_) => Ok(()),
+        Err(_) => Err(CleanerError::FailedToExtractArchive)
+    }
 }

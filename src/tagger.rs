@@ -3,40 +3,44 @@ use std::path::PathBuf;
 use image::EncodableLayout;
 use lofty::{Probe, Tag, Accessor, TagExt, TaggedFile, ItemKey, TagType, TaggedFileExt, PictureType, Picture};
 
-use crate::audio_file_meta::AudioFileMeta;
+use crate::{audio_file_meta::AudioFileMeta, error::CleanerResult};
 
-pub fn get_tagged_file(path: &PathBuf) -> TaggedFile {
-	Probe::open(path)
-        .expect("Failed to open file")
-        .read()
-        .expect("Failed to read file")
+pub fn get_tagged_file(path: &PathBuf) -> CleanerResult<TaggedFile> {
+	let tagged_file = Probe::open(path)?
+        .read()?;
+
+    Ok(tagged_file)
 }
 
-pub fn clean_tags(path: &PathBuf, meta: &AudioFileMeta, total_tracks: u32, cover_image: &Option<Vec<u8>>) {
-	let mut tagged_file = get_tagged_file(path);
+pub fn clean_tags(path: &PathBuf, meta: &AudioFileMeta, total_tracks: u32, cover_image: &Option<Vec<u8>>) -> CleanerResult<()> {
+	let mut tagged_file = get_tagged_file(path)?;
 
-    remove_tags(path, &mut tagged_file);
+    remove_tags(path, &mut tagged_file)?;
 
     // Primarily use ID3v2
     add_tag(&mut tagged_file, TagType::ID3v2, meta, total_tracks, &cover_image)
-        .save_to_path(path)
-        .expect("Failed to write ID3v2 tag");
+        .save_to_path(path)?;
 
     // Add ID3v1 for fallback/compatibility
     add_tag(&mut tagged_file, TagType::ID3v1, meta, total_tracks, &cover_image)
-        .save_to_path(path)
-        .expect("Failed to write ID3v1 tag");
+        .save_to_path(path)?;
+
+    Ok(())
 }
 
-fn remove_tags(path: &PathBuf, tagged_file: &mut TaggedFile) {
-    remove_tag(path, tagged_file, TagType::ID3v1);
-    remove_tag(path, tagged_file, TagType::ID3v2);
+fn remove_tags(path: &PathBuf, tagged_file: &mut TaggedFile) -> CleanerResult<()> {
+    remove_tag(path, tagged_file, TagType::ID3v1)?;
+    remove_tag(path, tagged_file, TagType::ID3v2)?;
+
+    Ok(())
 }
 
-fn remove_tag(path: &PathBuf, tagged_file: &mut TaggedFile, tag_type: TagType) {
+fn remove_tag(path: &PathBuf, tagged_file: &mut TaggedFile, tag_type: TagType) -> CleanerResult<()> {
     if let Some(tag) = tagged_file.remove(tag_type) {
-        tag.remove_from_path(path).expect("Failed to remove tag");
+        tag.remove_from_path(path)?;
     }
+
+    Ok(())
 }
 
 fn add_tag<'a>(tagged_file: &'a mut TaggedFile, tag_type: TagType, meta: &AudioFileMeta, total_tracks: u32, cover_image: &Option<Vec<u8>>) -> &'a Tag {
