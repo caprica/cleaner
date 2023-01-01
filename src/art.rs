@@ -1,6 +1,6 @@
 use std::{io::{Cursor, Write}, fs::File, path::PathBuf, ffi::OsStr, collections::HashSet};
 
-use image::{DynamicImage, io::Reader, codecs::jpeg::JpegEncoder, ColorType, ImageResult};
+use image::{DynamicImage, io::Reader, codecs::jpeg::JpegEncoder, ImageResult};
 use lofty::{TaggedFileExt, PictureType};
 
 use crate::{image_file::ImageFile, media_file::MediaFile, audio_file::AudioFile};
