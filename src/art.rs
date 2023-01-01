@@ -123,7 +123,7 @@ pub fn write_image_to_buffer(image: &DynamicImage, quality: u8) -> Vec<u8> {
 
 fn encode_jpeg_image<W: Write>(image: &DynamicImage, w: W, quality: u8) -> ImageResult<()> {
     let mut encoder = JpegEncoder::new_with_quality(w, quality);
-    encoder.encode(image.as_bytes(), image.width(), image.height(), ColorType::Rgb8)
+    encoder.encode(image.as_bytes(), image.width(), image.height(), image.color())
 }
 
 fn to_comparable_string(s: Option<&OsStr>) -> Option<String> {
