@@ -77,13 +77,9 @@ fn extract_zip_archive(archive_path: &PathBuf, output_path: &PathBuf) -> Cleaner
 fn extract_rar_archive(archive_path: &PathBuf, output_path: &PathBuf) -> CleanerResult<()> {
     let archive_name = archive_path.to_str().unwrap().to_string();
     let output_name = output_path.to_str().unwrap().to_string();
-    let result = Archive::new(archive_name)
+    Archive::new(archive_name)
         .extract_to(output_name)
         .unwrap()
-        .process();
-    // I do this because I don't know how to map from a generics exception using thiserror
-    match result {
-        Ok(_) => Ok(()),
-        Err(_) => Err(CleanerError::FailedToExtractArchive)
-    }
+        .process()?;
+    Ok(())
 }

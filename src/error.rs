@@ -12,8 +12,8 @@ pub enum CleanerError {
     #[error(transparent)]
     Lofty(#[from] lofty::LoftyError),
 
-    // #[error(transparent)]
-    // Unrar(#[from] unrar::error::UnrarError<T>),
+    #[error("failed to process rar")]
+    Unrar,
 
     #[error(transparent)]
     Zip(#[from] zip::result::ZipError),
@@ -23,7 +23,10 @@ pub enum CleanerError {
 
     #[error("unexpected file extension")]
     UnexpectedFileExtension,
+}
 
-    #[error("failed to extract archive")]
-    FailedToExtractArchive,
+impl<T> From<unrar::error::UnrarError<T>> for CleanerError {
+    fn from(_: unrar::error::UnrarError<T>) -> Self {
+        Self::Unrar
+    }
 }
