@@ -38,7 +38,7 @@ struct Cli {
     temp_dir: Option<PathBuf>,
 
     /// Quality factor to use when generating JPEG cover art
-    #[arg(short, long, value_parser = clap::value_parser!(u8).range(0..=100), default_value_t = 95)]
+    #[arg(short, long, value_parser = clap::value_parser!(u8).range(1..=100), default_value_t = 95)]
     quality: u8,
 }
 
