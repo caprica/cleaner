@@ -1,6 +1,6 @@
-use std::{io::Cursor, fs::File, path::PathBuf, ffi::OsStr, collections::HashSet};
+use std::{io::{Cursor, Write}, fs::File, path::PathBuf, ffi::OsStr, collections::HashSet};
 
-use image::{DynamicImage, io::Reader};
+use image::{DynamicImage, io::Reader, codecs::jpeg::JpegEncoder, ColorType, ImageResult};
 use lofty::{TaggedFileExt, PictureType};
 
 use crate::{image_file::ImageFile, media_file::MediaFile, audio_file::AudioFile};
@@ -111,14 +111,19 @@ pub fn get_cover_art_from_tag(audio_files: &Vec<&AudioFile>) -> Option<DynamicIm
 }
 
 pub fn write_image_to_file(image: &DynamicImage, path: &PathBuf, quality: u8) {
-    let mut file = File::create(path).expect("Failed to create image file");
-    image.write_to(&mut file, image::ImageOutputFormat::Jpeg(quality)).expect("Failed to write image to file");
+    let file = File::create(path).expect("Failed to create image file");
+    encode_jpeg_image(image, &file, quality).expect("Failed to write image to file");
 }
 
 pub fn write_image_to_buffer(image: &DynamicImage, quality: u8) -> Vec<u8> {
     let mut buffer = Cursor::new(Vec::with_capacity(INITIAL_BUFFER_CAPACITY));
-    image.write_to(&mut buffer, image::ImageOutputFormat::Jpeg(quality)).expect("Failed to write image to buffer");
+    encode_jpeg_image(image, buffer.by_ref(), quality).expect("Failed to write image to buffer");
     buffer.into_inner()
+}
+
+fn encode_jpeg_image<W: Write>(image: &DynamicImage, w: W, quality: u8) -> ImageResult<()> {
+    let mut encoder = JpegEncoder::new_with_quality(w, quality);
+    encoder.encode(image.as_bytes(), image.width(), image.height(), ColorType::Rgb8)
 }
 
 fn to_comparable_string(s: Option<&OsStr>) -> Option<String> {
