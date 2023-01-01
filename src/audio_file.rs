@@ -52,18 +52,18 @@ impl AudioFile {
         if let Some(tag) = tagged_file.primary_tag() {
             // Album artist name from album artist tag, artist tag, or artist directory name
             album_artist_name = Self::get_album_artist(tag)
-                .or_else(|| tag.artist().map(|s| s.to_string()))
-                .or_else(|| path_artist_name.as_ref().map(|p| p.to_string()));
+                .or_else(|| tag.artist().map(|s| s.trim().to_string()))
+                .or_else(|| path_artist_name.as_ref().map(|s| s.to_string()));
 
             // Artist name from artist tag, album artist tag, or artist directory name
             artist_name = tag.artist()
-                .map(|s| s.to_string())
+                .map(|s| s.trim().to_string())
                 .or_else(|| Self::get_album_artist(tag))
                 .or_else(|| path_artist_name.as_ref().map(|s| s.to_owned()));
 
             // Album title from tag, or album directory name
             album_title = tag.album()
-                .map(|s| s.to_string())
+                .map(|s| s.trim().to_string())
                 .or_else(|| path_album_title.map(|s| s.to_owned()));
 
             // Year from tag, or album directory name
@@ -76,12 +76,12 @@ impl AudioFile {
 
             // Track title from tag, or file name
             track_title = tag.title()
-                .map(|s| s.to_string())
+                .map(|s| s.trim().to_string())
                 .or_else(|| path_track_title.map(|s| s.to_owned()));
 
             // Genre from tag, no fallback available
             genre = tag.genre()
-                .map(|s| s.to_string());
+                .map(|s| s.trim().to_string());
         } else {
             album_artist_name = path_artist_name.as_ref().map(|s| s.to_owned());
             artist_name = path_artist_name.as_ref().map(|s| s.to_owned());
@@ -108,7 +108,7 @@ impl AudioFile {
     fn get_album_artist(tag: &Tag) -> Option<String> {
         tag
             .get_string(&ItemKey::AlbumArtist)
-            .map(|s| s.to_string())
+            .map(|s| s.trim().to_string())
     }
 }
 
@@ -125,7 +125,7 @@ fn decompose_artist_path(root_path: &PathBuf, path: &PathBuf) -> Option<String> 
         .filter(|p| p != root_path)
         .and_then(|p| p.file_name())
         .and_then(|s| s.to_str())
-        .map(|s| s.to_string())
+        .map(|s| s.trim().to_string())
 }
 
 fn decompose_album_path(root_path: &PathBuf, path: &PathBuf) -> (Option<String>, Option<u32>) {
@@ -144,7 +144,7 @@ fn decompose_album_path(root_path: &PathBuf, path: &PathBuf) -> (Option<String>,
             let album_title = captures
                 .get(1)
                 .map(|m| m.as_str())
-                .map(|s| s.to_string());
+                .map(|s| s.trim().to_string());
 
             let album_year = captures
                 .get(2)
@@ -182,7 +182,7 @@ fn decompose_file_path(path: &PathBuf) -> (Option<u32>, Option<String>, Option<A
                 let track_name = captures
                     .get(2)
                     .map(|m| m.as_str())
-                    .map(|s| s.to_string());
+                    .map(|s| s.trim().to_string());
 
                 return (track_number, track_name, audio_file_type);
             }
