@@ -33,7 +33,7 @@ struct Cli {
     #[arg(short, long, value_enum, default_value_t = Mode::Archives)]
     mode: Mode,
 
-    /// Optional directory to use for temporary files, otherwise use system temporary directory
+    /// Optional directory to use for temporary files, otherwise use system temporary directory (currently unused)
     #[arg(short, long)]
     temp_dir: Option<PathBuf>,
 
