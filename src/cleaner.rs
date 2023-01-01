@@ -35,7 +35,7 @@ pub fn clean_files(root_path: &PathBuf, output_path: &PathBuf, quality: u8) {
         let track_width = get_max_track_num_length(&audio_files);
         let title_width = track_width + 1 + get_max_title_length(&audio_files) + 1 + get_max_extension_length(&audio_files);
 
-        // Prefer art from an image file, fallback to art embedded in the audio file
+        // Prefer art from an image file, fallback to art embedded in any of the audio files
         let cover_art_image = image_file_map
             .get(&path)
             .and_then(|image_files| get_cover_art_from_file(&image_files, &audio_files))
