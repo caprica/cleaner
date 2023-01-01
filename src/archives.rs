@@ -27,7 +27,7 @@ pub fn process_archives(path: &PathBuf, output_path: &PathBuf, quality: u8) {
                 let temp_path = temp_dir.path().to_path_buf();
                 clean_files(&temp_path, output_path, quality);
             },
-            Err(err) => println!("{} {}", "ERROR".bright_red().bold(), err.to_string().red())
+            Err(err) => println!("{} {}\n", "ERROR".bright_red().bold(), err.to_string().red())
         }
     }
 
