@@ -32,6 +32,7 @@ impl MediaFiles {
         self.get_file_map(&self.image_files)
     }
 
+    #[allow(dead_code)]
     pub fn get_other_file_map(&self) -> BTreeMap<PathBuf, Vec<&OtherFile>> {
         self.get_file_map(&self.other_files)
     }
