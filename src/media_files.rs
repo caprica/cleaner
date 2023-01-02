@@ -56,7 +56,7 @@ impl MediaFiles {
 
     fn get_file_map<'a, T: MediaFile>(&'a self, files: &'a Vec<T>) -> BTreeMap<PathBuf, Vec<&T>> {
         let mut map = files
-            .into_iter()
+            .iter()
             .fold(
                 BTreeMap::<PathBuf, Vec<&T>>::new(),
                 |mut acc, file| {
