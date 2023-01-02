@@ -62,15 +62,17 @@ fn clean_by_album(source_path: &PathBuf, artist_output_path: &PathBuf, quality: 
 
         let target_image_path = &album_output_path.join("cover.jpg");
         if let Some(image) = &cover_art_image {
-            write_image_to_file(image, target_image_path, quality);
-            println!("{}", "OK".bright_green().bold());
+            match write_image_to_file(image, target_image_path, quality) {
+                Ok(_) => println!("{}", "OK".bright_green().bold()),
+                Err(err) => println!("{} {}", "ERROR".bright_red().bold(), err.to_string().red()),
+            }
         } else {
             println!("{}", "MISSING".bright_red().bold());
         }
 
         let cover_art_buffer = cover_art_image
             .as_ref()
-            .map(|image| write_image_to_buffer(&image, quality));
+            .and_then(|image| write_image_to_buffer(&image, quality).ok());
 
         let total_tracks: u32 = audio_files_in_album.len().try_into().expect("Failed to get number of tracks");
 

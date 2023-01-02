@@ -7,6 +7,9 @@ pub type CleanerResult<T> = Result<T, CleanerError>;
 #[derive(Debug, Error)]
 pub enum CleanerError {
     #[error(transparent)]
+    Image(#[from] image::ImageError),
+
+    #[error(transparent)]
     Io(#[from] io::Error),
 
     #[error(transparent)]
