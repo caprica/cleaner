@@ -121,7 +121,7 @@ fn get_audio_files_by_artist<'a>(audio_files: &'a Vec<&AudioFile>) -> BTreeMap<&
             |mut acc, audio_file| {
                 let artist_name = audio_file
                     .get_meta()
-                    .artist_name()
+                    .album_artist_name()
                     .unwrap_or(UNKNOWN_ARTIST_NAME);
 
                 let album_files = acc.entry(artist_name)
