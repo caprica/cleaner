@@ -1,9 +1,11 @@
-use std::{path::PathBuf, io::{stdout, Write}, fs, cmp::max};
+use std::{path::PathBuf, io::{stdout, Write}, fs, cmp::max, collections::BTreeMap};
 
 use colored::Colorize;
-use image::DynamicImage;
 
-use crate::{error::CleanerResult, art::{get_cover_art_from_file, get_cover_art_from_tag, write_image_to_buffer, write_image_to_file}, tagger::clean_tags, media_files::MediaFiles, audio_file::AudioFile, media_file::MediaFile};
+use crate::{error::CleanerResult, art::{get_cover_art_from_file, get_cover_art_from_tag, write_image_to_buffer, write_image_to_file}, tagger::clean_tags, media_files::MediaFiles, audio_file::AudioFile, media_file::MediaFile, image_file::ImageFile};
+
+const UNKNOWN_ARTIST_NAME: &str = "[unknown]";
+const UNKNOWN_ALBUM_TITLE: &str = "[unknown]";
 
 pub fn clean_files(root_path: &PathBuf, output_path: &PathBuf, quality: u8) {
     let files = MediaFiles::new(root_path.into());
@@ -11,45 +13,70 @@ pub fn clean_files(root_path: &PathBuf, output_path: &PathBuf, quality: u8) {
     let audio_file_map = files.get_audio_file_map();
     let image_file_map = files.get_image_file_map();
 
-    for (path, audio_files) in audio_file_map {
-        let first_path = audio_files.first()
-            .map(|f| f.path())
-            .and_then(|p| p.parent())
-            .map(|p| {
-                if p != root_path {
-                    p.file_name()
-                        .expect("Must have a file name")
-                        .to_string_lossy()
-                        .to_string()
-                } else {
-                    String::from("<none>")
-                }
-        });
+    for (source_path, audio_files_in_path) in audio_file_map {
+        let audio_files_by_artist = get_audio_files_by_artist(&audio_files_in_path);
+        clean_by_artist(&source_path, output_path, quality, &image_file_map, &audio_files_by_artist);
+    }
+}
 
-        if first_path.is_none() {
-            continue;
+fn clean_by_artist(source_path: &PathBuf, output_path: &PathBuf, quality: u8, image_file_map: &BTreeMap<PathBuf, Vec<&ImageFile>>, audio_files_by_artist: &BTreeMap<&str, BTreeMap<&str, Vec<&AudioFile>>>) {
+    for (artist_name, audio_files_by_album) in audio_files_by_artist {
+        print!(" Artist {} ", artist_name.bright_blue().bold());
+
+        let artist_output_path = output_path.join(artist_name);
+        match fs::create_dir_all(&artist_output_path) {
+            Ok(_) => println!("{}", "OK".bright_green().bold()),
+            Err(err) => {
+                println!("{} {}", "ERROR".bright_red().bold(), err.to_string().red());
+                continue;
+            }
         }
 
-        println!("Process {}", first_path.unwrap().bright_cyan().bold());
+        clean_by_album(source_path, &artist_output_path, quality, image_file_map, audio_files_by_album);
+    }
+}
 
-        let track_width = get_max_track_num_length(&audio_files);
-        let title_width = track_width + 1 + get_max_title_length(&audio_files) + 1 + get_max_extension_length(&audio_files);
+fn clean_by_album(source_path: &PathBuf, artist_output_path: &PathBuf, quality: u8, image_file_map: &BTreeMap<PathBuf, Vec<&ImageFile>>, audio_files_by_album: &BTreeMap<&str, Vec<&AudioFile>>) {
+    for (album_title, audio_files_in_album) in audio_files_by_album {
+        print!("  Album {} ", album_title.bright_cyan().bold());
 
-        // Prefer art from an image file, fallback to art embedded in any of the audio files
+        let album_output_path = artist_output_path.join(album_title);
+        match fs::create_dir_all(&album_output_path) {
+            Ok(_) => println!("{}", "OK".bright_green().bold()),
+            Err(err) => {
+                println!("{} {}", "ERROR".bright_red().bold(), err.to_string().red());
+                continue;
+            }
+        }
+
+        let track_width = get_max_track_num_length(&audio_files_in_album);
+        let title_width = track_width + 1 + get_max_title_length(&audio_files_in_album) + 1 + get_max_extension_length(&audio_files_in_album);
+
+        print!("  Cover {:title_width$} ", "cover.jpg".bright_white().bold());
+
+        // Prefer art from an image file in the samae directory, fallback to art embedded in any of the audio files
         let cover_art_image = image_file_map
-            .get(&path)
-            .and_then(|image_files| get_cover_art_from_file(&image_files, &audio_files))
-            .or_else(|| get_cover_art_from_tag(&audio_files));
+            .get(source_path)
+            .and_then(|image_files| get_cover_art_from_file(&image_files, &audio_files_in_album))
+            .or_else(|| get_cover_art_from_tag(&audio_files_in_album));
 
-        let cover_art_buffer = cover_art_image.as_ref().map(|image| write_image_to_buffer(&image, quality));
+        let target_image_path = &album_output_path.join("cover.jpg");
+        if let Some(image) = &cover_art_image {
+            write_image_to_file(image, target_image_path, quality);
+            println!("{}", "OK".bright_green().bold());
+        } else {
+            println!("{}", "MISSING".bright_red().bold());
+        }
 
-        let total_tracks: u32 = audio_files.len().try_into().expect("Unable to get number of tracks");
+        let cover_art_buffer = cover_art_image
+            .as_ref()
+            .map(|image| write_image_to_buffer(&image, quality));
 
-        for audio_file in &audio_files {
+        let total_tracks: u32 = audio_files_in_album.len().try_into().expect("Failed to get number of tracks");
+
+        for audio_file in audio_files_in_album {
             let meta = audio_file.get_meta();
 
-            let artist_output_path = output_path.join(meta.album_artist_name().unwrap_or_else(|| "<missing>"));
-            let album_output_path = artist_output_path.join(meta.album_title().unwrap_or_else(|| "<missing>"));
             let track_number = meta.track_number().unwrap();
             let track_title = meta.track_title().unwrap();
 
@@ -66,13 +93,50 @@ pub fn clean_files(root_path: &PathBuf, output_path: &PathBuf, quality: u8) {
             print!("  Track {:title_width$} ", target_file_name.white().bold());
             stdout().flush().expect("Failed to flush terminal output");
 
-            match clean_audio_file(audio_file, total_tracks, &cover_art_buffer, &cover_art_image, quality, &album_output_path, target_file_path) {
+            match clean_audio_file(audio_file, total_tracks, &cover_art_buffer, &album_output_path, target_file_path) {
                 Ok(_) => println!("{}", "OK".bright_green().bold()),
                 Err(err) => println!("{} {}", "ERROR".bright_red().bold(), err.to_string().red()),
             }
         }
         println!();
     }
+}
+
+fn clean_audio_file(audio_file: &AudioFile, total_tracks: u32, cover_art_buffer: &Option<Vec<u8>>, target_directory_path: &PathBuf, target_file_path: &PathBuf) -> CleanerResult<()> {
+    fs::create_dir_all(target_directory_path)?;
+    fs::copy(audio_file.path(), &target_file_path)?;
+
+    clean_tags(&target_file_path, audio_file.get_meta(), total_tracks, &cover_art_buffer)?;
+
+    Ok(())
+}
+
+fn get_audio_files_by_artist<'a>(audio_files: &'a Vec<&AudioFile>) -> BTreeMap<&'a str, BTreeMap<&'a str, Vec<&'a AudioFile>>> {
+    audio_files
+        .iter()
+        .fold(
+            BTreeMap::<&str, BTreeMap<&str, Vec<&AudioFile>>>::new(),
+            |mut acc, audio_file| {
+                let artist_name = audio_file
+                    .get_meta()
+                    .artist_name()
+                    .unwrap_or(UNKNOWN_ARTIST_NAME);
+
+                let album_files = acc.entry(artist_name)
+                    .or_insert_with(|| BTreeMap::<&str, Vec<&AudioFile>>::new());
+
+                let album_title = audio_file
+                    .get_meta()
+                    .album_title()
+                    .unwrap_or(UNKNOWN_ALBUM_TITLE);
+
+                album_files.entry(album_title)
+                    .or_insert_with(|| Vec::new())
+                    .push(audio_file);
+
+                acc
+            }
+        )
 }
 
 fn get_max_track_num_length(audio_files: &Vec<&AudioFile>) -> usize {
@@ -95,20 +159,4 @@ fn get_max_extension_length(audio_files: &Vec<&AudioFile>) -> usize {
         .map(|m| m.audio_file_type().unwrap().to_extension().chars().count())
         .max()
         .unwrap_or(0)
-}
-
-fn clean_audio_file(audio_file: &AudioFile, total_tracks: u32, cover_art_buffer: &Option<Vec<u8>>, cover_art_image: &Option<DynamicImage>, quality: u8, target_directory_path: &PathBuf, target_file_path: &PathBuf) -> CleanerResult<()> {
-    fs::create_dir_all(target_directory_path)?;
-    fs::copy(audio_file.path(), &target_file_path)?;
-
-    clean_tags(&target_file_path, audio_file.get_meta(), total_tracks, &cover_art_buffer)?;
-
-    let target_image_path = &target_directory_path.join("cover.jpg");
-    if !target_image_path.exists() {
-        if let Some(image) = cover_art_image {
-            write_image_to_file(image, target_image_path, quality);
-        }
-    }
-
-    Ok(())
 }
