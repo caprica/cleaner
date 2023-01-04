@@ -10,6 +10,11 @@ pub fn process_files(path: &PathBuf, output_path: &PathBuf, quality: u8) {
         output_path.to_string_lossy().bright_yellow().bold()
     );
 
+    if !path.is_dir() {
+        println!("{} {}\n", "ERROR".bright_red().bold(), "Not a valid directory".to_string().red());
+        return
+    }
+
     clean_files(path, output_path, quality);
 
     println!("Finished.");

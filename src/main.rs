@@ -23,7 +23,7 @@ use crate::{archives::process_archives};
 #[derive(Parser)]
 #[command(author, version, about, long_about = None)]
 struct Cli {
-    /// Directory to process
+    /// Directory or archive to process
     path: PathBuf,
 
     /// Output directory

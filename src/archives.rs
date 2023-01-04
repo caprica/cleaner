@@ -9,12 +9,24 @@ use zip_extensions::zip_extract;
 use crate::{error::{CleanerResult, CleanerError}, cleaner::clean_files};
 
 pub fn process_archives(path: &PathBuf, output_path: &PathBuf, quality: u8) {
-    println!("Processing archives in {} to {}...\n",
-        path.to_string_lossy().bright_yellow().bold(),
-        output_path.to_string_lossy().bright_yellow().bold()
-    );
+    if path.is_dir() {
+        println!("Processing archives in {} to {}...\n",
+            path.to_string_lossy().bright_yellow().bold(),
+            output_path.to_string_lossy().bright_yellow().bold()
+        );
+    } else {
+        println!("Processing archive {} to {}...\n",
+            path.to_string_lossy().bright_yellow().bold(),
+            output_path.to_string_lossy().bright_yellow().bold()
+        );
+    }
 
     let archives = get_archives(path);
+
+    if archives.is_empty() {
+        println!("{} {}\n", "ERROR".bright_red().bold(), "No valid archive found".to_string().red());
+        return
+    }
 
     for archive in archives {
         print!("Extract {} ", archive.file_name().unwrap().to_string_lossy().bright_magenta().bold());
@@ -36,21 +48,31 @@ pub fn process_archives(path: &PathBuf, output_path: &PathBuf, quality: u8) {
 }
 
 fn get_archives(path: &PathBuf) -> BTreeSet<PathBuf> {
-    let walker = WalkDir::new(&path)
-        .min_depth(1)
-        .max_depth(1);
+    if path.is_dir() {
+        let walker = WalkDir::new(&path)
+            .min_depth(1)
+            .max_depth(1);
 
-    walker.into_iter()
-        .filter_map(|e| e.ok())
-        .filter(|e| !e.file_type().is_dir())
-        .filter(|e| {
-            if let Some(ext) = e.path().extension() {
-                return ext == "zip" || ext == "rar";
+        walker.into_iter()
+            .filter_map(|e| e.ok())
+            .filter(|e| !e.file_type().is_dir())
+            .filter(|e| {
+                if let Some(ext) = e.path().extension() {
+                    return ext == "zip" || ext == "rar";
+                }
+                false
+            })
+            .map(|e| e.into_path())
+            .collect::<BTreeSet<PathBuf>>()
+    } else {
+        let mut result = BTreeSet::<PathBuf>::new();
+        if let Some(ext) = path.extension() {
+            if ext == "zip" || ext == "rar" {
+                result.insert(path.to_owned());
             }
-            false
-        })
-        .map(|e| e.into_path())
-        .collect::<BTreeSet<PathBuf>>()
+        }
+        result
+    }
 }
 
 fn extract_archive(archive_path: &PathBuf) -> CleanerResult<TempDir> {
