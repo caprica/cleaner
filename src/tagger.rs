@@ -12,17 +12,17 @@ pub fn get_tagged_file(path: &PathBuf) -> CleanerResult<TaggedFile> {
     Ok(tagged_file)
 }
 
-pub fn clean_tags(path: &PathBuf, meta: &AudioFileMeta, total_tracks: u32, cover_image: &Option<Vec<u8>>) -> CleanerResult<()> {
+pub fn clean_tags(path: &PathBuf, meta: &AudioFileMeta, default_year: &Option<u32>, default_genre: &Option<&str>, total_tracks: u32, cover_image: &Option<Vec<u8>>) -> CleanerResult<()> {
 	let mut tagged_file = get_tagged_file(path)?;
 
     remove_tags(path, &mut tagged_file)?;
 
     // Primarily use ID3v2
-    add_tag(&mut tagged_file, TagType::ID3v2, meta, total_tracks, &cover_image)
+    add_tag(&mut tagged_file, TagType::ID3v2, meta, default_year, default_genre, total_tracks, &cover_image)
         .save_to_path(path)?;
 
     // Add ID3v1 for fallback/compatibility
-    add_tag(&mut tagged_file, TagType::ID3v1, meta, total_tracks, &cover_image)
+    add_tag(&mut tagged_file, TagType::ID3v1, meta, default_year, default_genre, total_tracks, &cover_image)
         .save_to_path(path)?;
 
     Ok(())
@@ -43,7 +43,7 @@ fn remove_tag(path: &PathBuf, tagged_file: &mut TaggedFile, tag_type: TagType) -
     Ok(())
 }
 
-fn add_tag<'a>(tagged_file: &'a mut TaggedFile, tag_type: TagType, meta: &AudioFileMeta, total_tracks: u32, cover_image: &Option<Vec<u8>>) -> &'a Tag {
+fn add_tag<'a>(tagged_file: &'a mut TaggedFile, tag_type: TagType, meta: &AudioFileMeta, default_year: &Option<u32>, default_genre: &Option<&str>, total_tracks: u32, cover_image: &Option<Vec<u8>>) -> &'a Tag {
     tagged_file
         .insert_tag(Tag::new(tag_type));
 
@@ -65,7 +65,7 @@ fn add_tag<'a>(tagged_file: &'a mut TaggedFile, tag_type: TagType, meta: &AudioF
         tag.set_album(album_title.to_string());
     }
 
-    if let Some(year) = meta.year() {
+    if let Some(year) = meta.year().or_else(|| default_year.to_owned()) {
         match tag_type {
             TagType::ID3v1 => {
                 tag.insert_text(ItemKey::Year, year.to_string());
@@ -94,7 +94,7 @@ fn add_tag<'a>(tagged_file: &'a mut TaggedFile, tag_type: TagType, meta: &AudioF
         tag.set_title(track_title.to_string());
     }
 
-    if let Some(genre) = meta.genre() {
+    if let Some(genre) = meta.genre().or_else(|| default_genre.to_owned()) {
         tag.set_genre(genre.to_string());
     }
 

@@ -1,4 +1,4 @@
-use std::{path::PathBuf, io::{stdout, Write}, fs, cmp::max, collections::BTreeMap};
+use std::{path::PathBuf, io::{stdout, Write, stdin}, fs, cmp::max, collections::BTreeMap};
 
 use colored::Colorize;
 
@@ -49,6 +49,16 @@ fn clean_by_album(source_path: &PathBuf, artist_output_path: &PathBuf, quality: 
             }
         }
 
+        let mut default_year = audio_files_in_album.iter().find_map(|f| f.get_meta().year());
+        if default_year.is_none() {
+            default_year = get_year_input();
+        }
+
+        let mut default_genre = audio_files_in_album.iter().find_map(|f| f.get_meta().genre()).map(|s| s.to_owned());
+        if default_genre.is_none() {
+            default_genre = get_genre_input();
+        }
+
         let track_width = get_max_track_num_length(&audio_files_in_album);
         let title_width = track_width + 1 + get_max_title_length(&audio_files_in_album) + 1 + get_max_extension_length(&audio_files_in_album);
 
@@ -95,7 +105,7 @@ fn clean_by_album(source_path: &PathBuf, artist_output_path: &PathBuf, quality: 
             print!("  Track {:title_width$} ", target_file_name.white().bold());
             stdout().flush().expect("Failed to flush terminal output");
 
-            match clean_audio_file(audio_file, total_tracks, &cover_art_buffer, &album_output_path, target_file_path) {
+            match clean_audio_file(audio_file, &default_year, &default_genre.as_deref(), total_tracks, &cover_art_buffer, &album_output_path, target_file_path) {
                 Ok(_) => println!("{}", "OK".bright_green().bold()),
                 Err(err) => println!("{} {}", "ERROR".bright_red().bold(), err.to_string().red()),
             }
@@ -104,11 +114,42 @@ fn clean_by_album(source_path: &PathBuf, artist_output_path: &PathBuf, quality: 
     }
 }
 
-fn clean_audio_file(audio_file: &AudioFile, total_tracks: u32, cover_art_buffer: &Option<Vec<u8>>, target_directory_path: &PathBuf, target_file_path: &PathBuf) -> CleanerResult<()> {
+fn get_year_input() -> Option<u32> {
+    loop {
+        print!("   {}>", "Year".bright_red().bold());
+        stdout().flush().expect("Failed to flush terminal output");
+        if let Some(Ok(line)) = stdin().lines().next() {
+            let trimmed = line.trim();
+            if trimmed == "" {
+                return None;
+            }
+            match trimmed.parse::<u32>() {
+                Ok(parsed) => return Some(parsed),
+                Err(err) => println!("        {}", err.to_string().red()),
+            }
+        }
+    }
+}
+
+fn get_genre_input() -> Option<String> {
+    loop {
+        print!("  {}>", "Genre".bright_red().bold());
+        stdout().flush().expect("Failed to flush terminal output");
+        if let Some(Ok(line)) = stdin().lines().next() {
+            let trimmed = line.trim();
+            if trimmed == "" {
+                return None;
+            }
+            return Some(trimmed.to_string());
+        }
+    }
+}
+
+fn clean_audio_file(audio_file: &AudioFile, default_year: &Option<u32>, default_genre: &Option<&str>, total_tracks: u32, cover_art_buffer: &Option<Vec<u8>>, target_directory_path: &PathBuf, target_file_path: &PathBuf) -> CleanerResult<()> {
     fs::create_dir_all(target_directory_path)?;
     fs::copy(audio_file.path(), &target_file_path)?;
 
-    clean_tags(&target_file_path, audio_file.get_meta(), total_tracks, &cover_art_buffer)?;
+    clean_tags(&target_file_path, audio_file.get_meta(), default_year, default_genre, total_tracks, &cover_art_buffer)?;
 
     Ok(())
 }
