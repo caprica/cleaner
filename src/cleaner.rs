@@ -93,7 +93,9 @@ fn clean_by_album(source_path: &PathBuf, artist_output_path: &PathBuf, quality: 
             let meta = audio_file.get_meta();
 
             let track_number = meta.track_number().unwrap();
-            let track_title = meta.track_title().unwrap();
+            let track_title = meta.track_title()
+                .map(|s| s.replace("/", "-"))
+                .unwrap();
 
             let track_file_name = format!("{:0track_width$} {}.{}", track_number, track_title, meta.audio_file_type().expect("Must have a file type").to_extension());
 
