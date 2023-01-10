@@ -49,26 +49,29 @@ fn clean_by_album(source_path: &PathBuf, artist_output_path: &PathBuf, quality: 
             }
         }
 
-        let mut default_year = audio_files_in_album.iter().find_map(|f| f.get_meta().year());
+        let mut sorted_audio_files = audio_files_in_album.clone();
+        sorted_audio_files.sort_unstable_by_key(|k| k.get_meta().track_number());
+
+        let mut default_year = sorted_audio_files.iter().find_map(|f| f.get_meta().year());
         if default_year.is_none() {
             default_year = get_year_input();
         }
 
-        let mut default_genre = audio_files_in_album.iter().find_map(|f| f.get_meta().genre()).map(|s| s.to_owned());
+        let mut default_genre = sorted_audio_files.iter().find_map(|f| f.get_meta().genre()).map(|s| s.to_owned());
         if default_genre.is_none() {
             default_genre = get_genre_input();
         }
 
-        let track_width = get_max_track_num_length(&audio_files_in_album);
-        let title_width = track_width + 1 + get_max_title_length(&audio_files_in_album) + 1 + get_max_extension_length(&audio_files_in_album);
+        let track_width = get_max_track_num_length(&sorted_audio_files);
+        let title_width = track_width + 1 + get_max_title_length(&sorted_audio_files) + 1 + get_max_extension_length(&sorted_audio_files);
 
         print!("  Cover {:title_width$} ", "cover.jpg".bright_white().bold());
 
         // Prefer art from an image file in the samae directory, fallback to art embedded in any of the audio files
         let cover_art_image = image_file_map
             .get(source_path)
-            .and_then(|image_files| get_cover_art_from_file(&image_files, &audio_files_in_album))
-            .or_else(|| get_cover_art_from_tag(&audio_files_in_album));
+            .and_then(|image_files| get_cover_art_from_file(&image_files, &sorted_audio_files))
+            .or_else(|| get_cover_art_from_tag(&sorted_audio_files));
 
         let target_image_path = &album_output_path.join("cover.jpg");
         if let Some(image) = &cover_art_image {
@@ -84,9 +87,9 @@ fn clean_by_album(source_path: &PathBuf, artist_output_path: &PathBuf, quality: 
             .as_ref()
             .and_then(|image| write_image_to_buffer(&image, quality).ok());
 
-        let total_tracks: u32 = audio_files_in_album.len().try_into().expect("Failed to get number of tracks");
+        let total_tracks: u32 = sorted_audio_files.len().try_into().expect("Failed to get number of tracks");
 
-        for audio_file in audio_files_in_album {
+        for audio_file in sorted_audio_files {
             let meta = audio_file.get_meta();
 
             let track_number = meta.track_number().unwrap();
